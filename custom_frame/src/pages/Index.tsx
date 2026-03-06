@@ -14,11 +14,11 @@ export default function Index() {
         <img className="logoImg" src={LogoUrl} alt="Framie" />
 
         <div className="actions" role="group" aria-label="main actions">
-          <button className="btn primary" type="button" onClick={go("/custom1")}
+          <button className="btn primary" type="button" onClick={go("/photo1 ")}
             aria-label="프레임 커스텀 하기">
             프레임 커스텀 하기
           </button>
-          <button className="btn outline" type="button" onClick={go("/photo1")}
+          <button className="btn outline" type="button" onClick={go("/custom1")}
             aria-label="커스텀 프레임 촬영">
             커스텀 프레임 촬영
           </button>
