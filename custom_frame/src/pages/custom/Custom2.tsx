@@ -11,6 +11,9 @@ export default function Custom2() {
     if (window.history.length > 1) navigate(-1);
     else navigate("/", { replace: true });
   };
+  const handleGoNext = () =>{
+    navigate("/customphoto1");
+  }
   return (
     <div className="custom2-page">
         <button
@@ -53,7 +56,7 @@ export default function Custom2() {
             </div>
           </div>
 
-          <button className="custom2-button" type="button">
+          <button className="custom2-button" type="button" onClick={handleGoNext}>
             사진 찍기
           </button>
 
