@@ -7,6 +7,7 @@ import Custom1 from "./pages/custom/Custom1";
 import Photo from "./pages/photo/Photo";
 import Custom2 from "./pages/custom/Custom2";
 import Photo1 from "./pages/custom/Photo1";
+import TakePhoto from "./pages/photo/Takephoto";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
       <Route path="/custom2" element={<Custom2 />}/>
       <Route path="/photo1" element={<Photo />}/>
       <Route path="/customphoto1" element={<Photo1 />}/>
+      <Route path="/takephoto" element={<TakePhoto />}/>
     </Routes>
   );
 }
