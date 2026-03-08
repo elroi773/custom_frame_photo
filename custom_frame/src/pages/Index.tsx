@@ -23,12 +23,6 @@ export default function Index() {
             커스텀 프레임 촬영
           </button>
         </div>
-
-        <div className="auth">
-          <button className="link" type="button" onClick={go("/login")}>로그인</button>
-          <span className="divider" aria-hidden="true">&nbsp;&nbsp;</span>
-          <button className="link" type="button" onClick={go("/join")}>회원가입</button>
-        </div>
       </main>
     </div>
   );
