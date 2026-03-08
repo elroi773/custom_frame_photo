@@ -2,6 +2,96 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import h1 from "../../assets/frame_photo.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 
+const PRIMARY = "#3047d9";
+const REMOVEBG_API_URL = "https://api.remove.bg/v1.0/removebg";
+
+type RemoveBgErrorResponse = {
+  errors?: Array<{ title?: string }>;
+};
+
+async function removeBackground(imageBlob: Blob) {
+  const apiKey = import.meta.env.VITE_REMOVEBG_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("remove.bg API 키가 없어요. .env 설정을 확인해 주세요.");
+  }
+
+  const formData = new FormData();
+  formData.append("image_file", imageBlob, "capture.png");
+  formData.append("size", "auto");
+  formData.append("format", "png");
+
+  const response = await fetch(REMOVEBG_API_URL, {
+    method: "POST",
+    headers: {
+      "X-Api-Key": apiKey,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = "배경 제거에 실패했어요.";
+
+    try {
+      const errorData = (await response.json()) as RemoveBgErrorResponse;
+      if (errorData.errors?.[0]?.title) {
+        message = errorData.errors[0].title;
+      }
+    } catch {
+      // ignore
+    }
+
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("이미지 변환에 실패했어요."));
+      }
+    };
+    reader.onerror = () => reject(new Error("이미지 변환에 실패했어요."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function captureVideoFrame(video: HTMLVideoElement) {
+  const canvas = document.createElement("canvas");
+  const width = video.videoWidth || 1280;
+  const height = video.videoHeight || 720;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("카메라 캡처를 처리할 수 없어요.");
+  }
+
+  context.save();
+  context.translate(width, 0);
+  context.scale(-1, 1);
+  context.drawImage(video, 0, 0, width, height);
+  context.restore();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("사진 캡처에 실패했어요."));
+        return;
+      }
+      resolve(blob);
+    }, "image/png");
+  });
+}
+
 export default function TakePhoto() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -11,6 +101,8 @@ export default function TakePhoto() {
   const frameTitle = location.state?.frameTitle || `${shotCount}컷`;
   const [error, setError] = useState<string>("");
   const [currentShotIndex, setCurrentShotIndex] = useState(0);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const shotSlots = useMemo(() => Array.from({ length: shotCount }, (_, index) => index), [shotCount]);
 
@@ -19,7 +111,6 @@ export default function TakePhoto() {
 
     const startCamera = async () => {
       try {
-        // Prefer rear camera on mobile; browsers will pick the best available.
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
           audio: false,
@@ -34,15 +125,12 @@ export default function TakePhoto() {
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          // iOS Safari sometimes needs an explicit play call.
           await videoRef.current.play().catch(() => {
-            /* ignore - user gesture may be required */
+            /* ignore */
           });
         }
-      } catch (e) {
-        setError(
-          "카메라 권한을 허용해 주세요. (브라우저/기기에서 카메라 접근이 차단되어 있을 수 있어요.)"
-        );
+      } catch {
+        setError("카메라 권한을 허용해 주세요. 브라우저에서 카메라 접근이 차단되었을 수 있어요.");
       }
     };
 
@@ -57,17 +145,57 @@ export default function TakePhoto() {
     };
   }, []);
 
-  const handleNextShot = () => {
-    if (currentShotIndex < shotCount - 1) {
-      setCurrentShotIndex((prev) => prev + 1);
+  const handleCaptureShot = async () => {
+    if (isProcessing) return;
+
+    if (!videoRef.current) {
+      setError("카메라가 아직 준비되지 않았어요.");
       return;
     }
 
-    window.alert("실제 사진 저장 기능은 아직 연결 전이에요. 지금은 컷 진행만 확인할 수 있어요.");
+    try {
+      setError("");
+      setIsProcessing(true);
+
+      const capturedBlob = await captureVideoFrame(videoRef.current);
+      const transparentBlob = await removeBackground(capturedBlob);
+      const transparentImageUrl = await blobToDataUrl(transparentBlob);
+
+      const nextImages = [...capturedImages, transparentImageUrl];
+      setCapturedImages(nextImages);
+
+      const isLastShot = currentShotIndex >= shotCount - 1;
+
+      if (!isLastShot) {
+        setCurrentShotIndex((prev) => prev + 1);
+        return;
+      }
+
+      const resultPayload = {
+        shotCount,
+        frameTitle,
+        photos: nextImages,
+      };
+
+      sessionStorage.setItem("photoResultData", JSON.stringify(resultPayload));
+
+      navigate("/result", {
+        replace: true,
+        state: resultPayload,
+      });
+    } catch (captureError) {
+      const message = captureError instanceof Error ? captureError.message : "사진 처리 중 오류가 발생했어요.";
+      setError(message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleResetShots = () => {
     setCurrentShotIndex(0);
+    setCapturedImages([]);
+    setError("");
+    sessionStorage.removeItem("photoResultData");
   };
 
   return (
@@ -102,7 +230,7 @@ export default function TakePhoto() {
           style={{
             border: "none",
             background: "transparent",
-            color: "#3047d9",
+            color: PRIMARY,
             fontFamily: "Paperozi",
             fontWeight: 600,
             fontSize: 16,
@@ -126,7 +254,7 @@ export default function TakePhoto() {
             style={{
               margin: "14px 0 0",
               fontSize: 20,
-              color: "#3047d9",
+              color: PRIMARY,
               fontFamily: "Paperozi",
               fontWeight: 400,
             }}
@@ -180,13 +308,13 @@ export default function TakePhoto() {
                 padding: "10px 14px",
                 borderRadius: 999,
                 background: "rgba(255,255,255,0.88)",
-                color: "#3047d9",
+                color: PRIMARY,
                 fontFamily: "Paperozi",
                 fontWeight: 600,
                 fontSize: 15,
               }}
             >
-              {currentShotIndex + 1} / {shotCount} 컷 진행 중
+              {Math.min(currentShotIndex + 1, shotCount)} / {shotCount} 컷 진행 중
             </div>
           </section>
 
@@ -209,7 +337,7 @@ export default function TakePhoto() {
                   fontFamily: "Paperozi",
                   fontWeight: 600,
                   fontSize: 22,
-                  color: "#3047d9",
+                  color: PRIMARY,
                 }}
               >
                 컷 진행 상태
@@ -224,14 +352,14 @@ export default function TakePhoto() {
                   lineHeight: 1.5,
                 }}
               >
-                실제 촬영 저장은 아직 연결하지 않았어요. 지금은 선택한 컷 수만큼 흐름만 먼저 확인할 수 있어요.
+                사진을 찍으면 remove.bg로 배경 제거 후 투명 PNG 상태로 결과 화면에 넘겨져요.
               </p>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {shotSlots.map((slotIndex) => {
                 const isActive = slotIndex === currentShotIndex;
-                const isDone = slotIndex < currentShotIndex;
+                const isDone = slotIndex < capturedImages.length;
 
                 return (
                   <div
@@ -240,7 +368,7 @@ export default function TakePhoto() {
                       borderRadius: 18,
                       padding: "14px 16px",
                       border: isActive
-                        ? "2px solid #3047d9"
+                        ? `2px solid ${PRIMARY}`
                         : "1.5px solid rgba(48, 71, 217, 0.16)",
                       background: isDone
                         ? "rgba(48, 71, 217, 0.08)"
@@ -261,7 +389,7 @@ export default function TakePhoto() {
                       <span
                         style={{
                           fontWeight: 600,
-                          color: "#3047d9",
+                          color: PRIMARY,
                           fontSize: 16,
                         }}
                       >
@@ -274,7 +402,7 @@ export default function TakePhoto() {
                           fontSize: 13,
                         }}
                       >
-                        {isDone ? "다음으로 이동 완료" : isActive ? "현재 준비 중" : "대기 중"}
+                        {isDone ? "촬영 완료" : isActive ? "현재 촬영 차례" : "대기 중"}
                       </span>
                     </div>
                   </div>
@@ -285,20 +413,26 @@ export default function TakePhoto() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
                 type="button"
-                onClick={handleNextShot}
+                onClick={handleCaptureShot}
+                disabled={isProcessing}
                 style={{
                   border: "none",
                   borderRadius: 18,
-                  background: "#3047d9",
+                  background: PRIMARY,
                   color: "#ffffff",
                   fontFamily: "Paperozi",
                   fontWeight: 600,
                   fontSize: 16,
                   padding: "16px 18px",
-                  cursor: "pointer",
+                  cursor: isProcessing ? "wait" : "pointer",
+                  opacity: isProcessing ? 0.72 : 1,
                 }}
               >
-                {currentShotIndex === shotCount - 1 ? "촬영 완료 흐름 보기" : "다음 컷으로 진행"}
+                {isProcessing
+                  ? "배경 제거 중..."
+                  : currentShotIndex === shotCount - 1
+                  ? "마지막 사진 찍기"
+                  : "사진 찍기"}
               </button>
 
               <button
@@ -308,7 +442,7 @@ export default function TakePhoto() {
                   border: "1.5px solid rgba(48, 71, 217, 0.22)",
                   borderRadius: 18,
                   background: "#ffffff",
-                  color: "#3047d9",
+                  color: PRIMARY,
                   fontFamily: "Paperozi",
                   fontWeight: 400,
                   fontSize: 15,
@@ -316,9 +450,35 @@ export default function TakePhoto() {
                   cursor: "pointer",
                 }}
               >
-                처음부터 다시 보기
+                처음부터 다시 찍기
               </button>
             </div>
+
+            {capturedImages.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                {capturedImages.map((image, index) => (
+                  <div
+                    key={`${image}-${index}`}
+                    style={{
+                      borderRadius: 14,
+                      background: "rgba(48, 71, 217, 0.05)",
+                      minHeight: 92,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      border: "1px solid rgba(48, 71, 217, 0.1)",
+                    }}
+                  >
+                    <img
+                      src={image}
+                      alt={`${index + 1}번째 컷 미리보기`}
+                      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {error ? (
               <p
