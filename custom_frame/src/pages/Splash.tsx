@@ -6,11 +6,16 @@ import { useNavigate } from "react-router-dom";
 export default function Splash() {
   const navigate = useNavigate();
 
+  const handleStart = () => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    navigate(isLoggedIn ? "/index" : "/login");
+  };
+
   return (
     <div className="splash">
       <h6 className="splashTagline">언제 어디서든 같이 있는것 처럼</h6>
       <img className="splashLogo" src={LogoUrl} alt="Framie" />
-      <button className="splashCta" onClick={() => navigate("/index")}>
+      <button className="splashCta" onClick={handleStart}>
         <span className="splashCtaText">시작하기</span>
         <span className="splashCtaArrow">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
