@@ -20,6 +20,15 @@ type Slot = {
   height: number;
 };
 
+function getViewportAspectRatio() {
+  if (typeof window === "undefined") {
+    return 16 / 9;
+  }
+
+  const ratio = window.innerWidth / window.innerHeight;
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : 16 / 9;
+}
+
 function generateRandomCode() {
   const letters = Array.from({ length: 3 }, () =>
     String.fromCharCode(65 + Math.floor(Math.random() * 26))
@@ -51,8 +60,8 @@ function getSlots(shotCount: number): Slot[] {
   }
 
   return [
-    { left: 28, top: 11, width: 44, height: 35 },
-    { left: 28, top: 54, width: 44, height: 35 },
+    { left: 22, top: 8.5, width: 56, height: 37 },
+    { left: 22, top: 54.5, width: 56, height: 37 },
   ];
 }
 
@@ -72,6 +81,21 @@ function roundedRect(
   context.arcTo(x, y + height, x, y, r);
   context.arcTo(x, y, x + width, y, r);
   context.closePath();
+}
+
+function fitSlotToAspect(slot: Slot, targetAspect: number): Slot {
+  const enlargedHeight = slot.height * 1.25;
+  const nextWidth = enlargedHeight * targetAspect;
+  const offsetLeft = (slot.width - nextWidth) / 2;
+  const offsetTop = (slot.height - enlargedHeight) / 2;
+
+  return {
+    ...slot,
+    left: slot.left + offsetLeft,
+    top: slot.top + offsetTop,
+    width: nextWidth,
+    height: enlargedHeight,
+  };
 }
 
 async function loadImage(src: string) {
@@ -101,7 +125,8 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
   const innerY = 200;
   const innerWidth = 600;
   const innerHeight = 1080;
-  const slots = getSlots(shotCount);
+  const viewportAspect = getViewportAspectRatio();
+  const slots = getSlots(shotCount).map((slot) => fitSlotToAspect(slot, viewportAspect));
 
   context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -134,7 +159,7 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
     roundedRect(context, x, y, w, h, radius);
     context.clip();
 
-    const ratio = Math.min(w / image.width, h / image.height);
+    const ratio = Math.max(w / image.width, h / image.height);
     const drawWidth = image.width * ratio;
     const drawHeight = image.height * ratio;
     const drawX = x + (w - drawWidth) / 2;
@@ -148,7 +173,8 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
 }
 
 function FramePreview({ shotCount, photos }: { shotCount: number; photos: string[] }) {
-  const slots = getSlots(shotCount);
+  const viewportAspect = getViewportAspectRatio();
+  const slots = getSlots(shotCount).map((slot) => fitSlotToAspect(slot, viewportAspect));
 
   return (
     <div
