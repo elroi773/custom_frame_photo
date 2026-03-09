@@ -29,6 +29,10 @@ function getViewportAspectRatio() {
   return Number.isFinite(ratio) && ratio > 0 ? ratio : 16 / 9;
 }
 
+function getFrameAspectRatio(shotCount: number) {
+  return shotCount === 3 ? 1.72 : 0.62;
+}
+
 function generateRandomCode() {
   const letters = Array.from({ length: 3 }, () =>
     String.fromCharCode(65 + Math.floor(Math.random() * 26))
@@ -44,9 +48,9 @@ function generateRandomCode() {
 function getSlots(shotCount: number): Slot[] {
   if (shotCount === 3) {
     return [
-      { left: 17, top: 20, width: 18, height: 60 },
-      { left: 41, top: 20, width: 18, height: 60 },
-      { left: 65, top: 20, width: 18, height: 60 },
+      { left: 0, top: 31, width: 33.34, height: 30 },
+      { left: 33.33, top: 31, width: 33.34, height: 30 },
+      { left: 66.66, top: 31, width: 33.34, height: 30 },
     ];
   }
 
@@ -83,7 +87,15 @@ function roundedRect(
   context.closePath();
 }
 
-function fitSlotToAspect(slot: Slot, targetAspect: number): Slot {
+function fitSlotToAspect(
+  slot: Slot,
+  targetAspect: number,
+  shotCount: number
+): Slot {
+  if (shotCount === 3) {
+    return slot;
+  }
+
   const enlargedHeight = slot.height * 1.25;
   const nextWidth = enlargedHeight * targetAspect;
   const offsetLeft = (slot.width - nextWidth) / 2;
@@ -109,24 +121,26 @@ async function loadImage(src: string) {
 
 async function buildTransparentResultImage(photos: string[], shotCount: number) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 1600;
+  canvas.width = shotCount === 3 ? 1800 : 1200;
+  canvas.height = shotCount === 3 ? 1100 : 1600;
 
   const context = canvas.getContext("2d");
   if (!context) {
     throw new Error("결과 이미지를 만들 수 없어요.");
   }
 
-  const outerX = 180;
-  const outerY = 110;
-  const outerWidth = 840;
-  const outerHeight = 1380;
-  const innerX = 300;
-  const innerY = 200;
-  const innerWidth = 600;
-  const innerHeight = 1080;
+  const outerX = shotCount === 3 ? 120 : 180;
+  const outerY = shotCount === 3 ? 150 : 110;
+  const outerWidth = shotCount === 3 ? 1560 : 840;
+  const outerHeight = shotCount === 3 ? 800 : 1380;
+  const innerX = shotCount === 3 ? 220 : 300;
+  const innerY = shotCount === 3 ? 245 : 200;
+  const innerWidth = shotCount === 3 ? 1360 : 600;
+  const innerHeight = shotCount === 3 ? 610 : 1080;
   const viewportAspect = getViewportAspectRatio();
-  const slots = getSlots(shotCount).map((slot) => fitSlotToAspect(slot, viewportAspect));
+  const slots = getSlots(shotCount).map((slot) =>
+    fitSlotToAspect(slot, viewportAspect, shotCount)
+  );
 
   context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -153,13 +167,14 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
     const y = innerY + (slot.top / 100) * innerHeight;
     const w = (slot.width / 100) * innerWidth;
     const h = (slot.height / 100) * innerHeight;
-    const radius = shotCount === 4 ? 32 : 44;
+    const radius = shotCount === 3 ? 0 : shotCount === 4 ? 32 : 44;
 
     context.save();
     roundedRect(context, x, y, w, h, radius);
     context.clip();
 
-    const ratio = Math.max(w / image.width, h / image.height);
+    const baseRatio = Math.max(w / image.width, h / image.height);
+    const ratio = shotCount === 3 ? baseRatio * 1.18 : baseRatio * 1.06;
     const drawWidth = image.width * ratio;
     const drawHeight = image.height * ratio;
     const drawX = x + (w - drawWidth) / 2;
@@ -172,15 +187,24 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
   return canvas.toDataURL("image/png");
 }
 
-function FramePreview({ shotCount, photos }: { shotCount: number; photos: string[] }) {
+function FramePreview({
+  shotCount,
+  photos,
+}: {
+  shotCount: number;
+  photos: string[];
+}) {
   const viewportAspect = getViewportAspectRatio();
-  const slots = getSlots(shotCount).map((slot) => fitSlotToAspect(slot, viewportAspect));
+  const frameAspectRatio = getFrameAspectRatio(shotCount);
+  const slots = getSlots(shotCount).map((slot) =>
+    fitSlotToAspect(slot, viewportAspect, shotCount)
+  );
 
   return (
     <div
       style={{
-        width: "min(78vw, 520px)",
-        aspectRatio: "0.62",
+        width: shotCount === 3 ? "min(88vw, 980px)" : "min(78vw, 520px)",
+        aspectRatio: `${frameAspectRatio}`,
         border: "3px solid rgba(64,80,214,0.65)",
         borderRadius: 34,
         padding: "22px",
@@ -207,13 +231,13 @@ function FramePreview({ shotCount, photos }: { shotCount: number; photos: string
               top: `${slot.top}%`,
               width: `${slot.width}%`,
               height: `${slot.height}%`,
-              borderRadius: shotCount === 4 ? 18 : 24,
+              borderRadius: shotCount === 3 ? 0 : shotCount === 4 ? 18 : 24,
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               background: PREVIEW_BG,
-              border: "2px dashed rgba(64,80,214,0.35)",
+              border: shotCount === 3 ? "none" : "2px dashed rgba(64,80,214,0.35)",
               boxSizing: "border-box",
             }}
           >
@@ -224,7 +248,10 @@ function FramePreview({ shotCount, photos }: { shotCount: number; photos: string
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "contain",
+                  objectFit: shotCount === 3 ? "cover" : "contain",
+                  objectPosition: shotCount === 3 ? "center center" : "center",
+                  transform: shotCount === 3 ? "scale(1.18)" : "scale(1.06)",
+                  transformOrigin: "center center",
                 }}
               />
             ) : null}
@@ -337,7 +364,10 @@ export default function PhotoResult() {
         minHeight: "100vh",
         background: PAGE_BG,
         display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 570px)",
+        gridTemplateColumns:
+          shotCount === 3
+            ? "minmax(760px, 1fr) minmax(320px, 570px)"
+            : "minmax(0, 1fr) minmax(320px, 570px)",
       }}
     >
       <section
@@ -356,8 +386,8 @@ export default function PhotoResult() {
         ) : (
           <div
             style={{
-              width: "min(78vw, 520px)",
-              aspectRatio: "0.62",
+              width: shotCount === 3 ? "min(88vw, 980px)" : "min(78vw, 520px)",
+              aspectRatio: `${getFrameAspectRatio(shotCount)}`,
               border: "2px dashed rgba(64,80,214,0.28)",
               borderRadius: 34,
               display: "flex",
