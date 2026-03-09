@@ -56,10 +56,10 @@ function getSlots(shotCount: number): Slot[] {
 
   if (shotCount === 4) {
     return [
-      { left: 16, top: 14, width: 68, height: 14 },
+      { left: 16, top: 10, width: 68, height: 14 },
       { left: 16, top: 33, width: 68, height: 14 },
-      { left: 16, top: 52, width: 68, height: 14 },
-      { left: 16, top: 71, width: 68, height: 14 },
+      { left: 16, top: 56, width: 68, height: 14 },
+      { left: 16, top: 79, width: 68, height: 14 },
     ];
   }
 
@@ -94,6 +94,17 @@ function fitSlotToAspect(
 ): Slot {
   if (shotCount === 3) {
     return slot;
+  }
+
+  if (shotCount === 4) {
+    const enlargedHeight = slot.height * 1.62;
+    const offsetTop = (slot.height - enlargedHeight) / 2;
+
+    return {
+      ...slot,
+      top: slot.top + offsetTop,
+      height: enlargedHeight,
+    };
   }
 
   const enlargedHeight = slot.height * 1.25;
