@@ -9,6 +9,12 @@ type RemoveBgErrorResponse = {
   errors?: Array<{ title?: string }>;
 };
 
+type ResultPayload = {
+  shotCount: number;
+  frameTitle: string;
+  photos: string[];
+};
+
 async function removeBackground(imageBlob: Blob) {
   const apiKey = import.meta.env.VITE_REMOVEBG_API_KEY;
 
@@ -171,7 +177,7 @@ export default function TakePhoto() {
         return;
       }
 
-      const resultPayload = {
+      const resultPayload: ResultPayload = {
         shotCount,
         frameTitle,
         photos: nextImages,
@@ -179,8 +185,7 @@ export default function TakePhoto() {
 
       sessionStorage.setItem("photoResultData", JSON.stringify(resultPayload));
 
-      navigate("/result", {
-        replace: true,
+      navigate("/photo/result", {
         state: resultPayload,
       });
     } catch (captureError) {
