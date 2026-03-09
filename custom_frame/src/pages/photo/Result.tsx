@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import h1 from "../../assets/photo_result.svg";
 
 const PAGE_BG = "#f5f4ee";
@@ -275,6 +275,7 @@ function FramePreview({
 
 export default function PhotoResult() {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = (location.state ?? {}) as ResultState;
   const stored = sessionStorage.getItem("photoResultData");
   const storedState = stored ? (JSON.parse(stored) as ResultState) : null;
@@ -566,6 +567,50 @@ export default function PhotoResult() {
             >
               투명 PNG 저장하기
             </button>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "18px",
+                marginTop: "4px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => navigate("/mypage")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "rgba(255,255,255,0.92)",
+                  fontSize: "15px",
+                  fontWeight: 500,
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                }}
+              >
+                마이페이지로 가기
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "rgba(255,255,255,0.92)",
+                  fontSize: "15px",
+                  fontWeight: 500,
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                }}
+              >
+                홈으로
+              </button>
+            </div>
           </div>
         </div>
       </section>
