@@ -15,24 +15,19 @@ import PhotoResult from "./pages/photo/Result";
 function App() {
   return (
     <Routes>
-      {/* Home */}
       <Route path="/" element={<Splash />} />
-
-      {/* Optional: keep /index working */}
       <Route path="/index" element={<Index />} />
-
-      {/* Fallback: any unknown path -> home */}
       <Route path="*" element={<Navigate to="/" replace />} />
-      <Route path="/login" element={<Login />}/>
-      <Route path="/join" element={<Join />}/>
-      <Route path="/custom1" element={<Custom1 />}/>
-      <Route path="/custom2" element={<Custom2 />}/>
-      <Route path="/photo1" element={<Photo />}/>
-      <Route path="/customphoto1" element={<Photo1 />}/>
-      <Route path="/takephoto" element={<TakePhoto />}/>
-      <Route path="/mypage" element={<Mypage />}/>
-      <Route path="/custom/result" element={<CustomResult />}/>
-      <Route path="/photo/result" element={<PhotoResult />}/>
+      <Route path="/login" element={<Login />} />
+      <Route path="/join" element={<Join />} />
+      <Route path="/custom1" element={<Custom1 />} />
+      <Route path="/custom2" element={<Custom2 />} />
+      <Route path="/photo1" element={<Photo />} />
+      <Route path="/customphoto1" element={<Photo1 />} />
+      <Route path="/takephoto" element={<TakePhoto />} />
+      <Route path="/mypage" element={<Mypage />} />
+      <Route path="/custom/result" element={<CustomResult />} />
+      <Route path="/photo/result" element={<PhotoResult />} />
     </Routes>
   );
 }
