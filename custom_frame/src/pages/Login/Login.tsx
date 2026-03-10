@@ -8,6 +8,8 @@ import LoginLogo from "../../assets/Login_Logo.svg";
 import Logo from "../../assets/Framie_white.svg";
 import { supabase } from "../../lib/supabase";
 
+
+
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
