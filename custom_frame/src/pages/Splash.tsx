@@ -12,6 +12,7 @@ export default function Splash() {
   };
 
   return (
+    
     <div className="splash">
       <h6 className="splashTagline">언제 어디서든 같이 있는것 처럼</h6>
       <img className="splashLogo" src={LogoUrl} alt="Framie" />
