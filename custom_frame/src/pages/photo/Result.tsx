@@ -614,6 +614,7 @@ export default function PhotoResult() {
           </div>
         </div>
       </section>
+      
     </div>
   );
 }
