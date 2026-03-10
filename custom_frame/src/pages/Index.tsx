@@ -13,6 +13,7 @@ export default function Index() {
         <p className="tagline">언제 어디서든 같이 있는것 처럼</p>
         <img className="logoImg" src={LogoUrl} alt="Framie" />
 
+
         <div className="actions" role="group" aria-label="main actions">
           <button className="btn primary" type="button" onClick={go("/photo1 ")}
             aria-label="프레임 커스텀 하기">
