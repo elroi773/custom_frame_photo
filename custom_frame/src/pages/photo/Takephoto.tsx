@@ -10,6 +10,7 @@ type RemoveBgErrorResponse = {
 };
 
 type ResultPayload = {
+  frameId: string;
   shotCount: number;
   frameTitle: string;
   photos: string[];
@@ -103,6 +104,7 @@ export default function TakePhoto() {
   const streamRef = useRef<MediaStream | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const frameId = location.state?.frameId || "";
   const shotCount = Number(location.state?.shotCount) || 2;
   const frameTitle = location.state?.frameTitle || `${shotCount}컷`;
   const [error, setError] = useState<string>("");
@@ -154,6 +156,10 @@ export default function TakePhoto() {
   const handleCaptureShot = async () => {
     if (isProcessing) return;
 
+    if (!frameId) {
+      setError("프레임 ID 없이 촬영 중이에요. 저장하려면 프레임 선택 화면에서 다시 들어와 주세요.");
+    }
+
     if (!videoRef.current) {
       setError("카메라가 아직 준비되지 않았어요.");
       return;
@@ -178,6 +184,7 @@ export default function TakePhoto() {
       }
 
       const resultPayload: ResultPayload = {
+        frameId,
         shotCount,
         frameTitle,
         photos: nextImages,
