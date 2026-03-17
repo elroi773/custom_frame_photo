@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import h1 from "../../assets/photo_result.svg";
+import { supabase } from "../../lib/supabase";
 
 const PAGE_BG = "#f5f4ee";
 const PRIMARY = "#4050d6";
 const WHITE = "#ffffff";
 const PREVIEW_BG = "#f1f2fb";
+const RESULT_STORAGE_BUCKET = "photo-results";
 
 type ResultState = {
+  frameId?: string;
   shotCount?: number;
   frameTitle?: string;
   photos?: string[];
+  message?: string;
 };
 
 type Slot = {
@@ -43,6 +47,101 @@ function generateRandomCode() {
   ).join("");
 
   return `${letters}${numbers}`;
+}
+
+function getDisplayUserId(email?: string | null, fallback = "게스트") {
+  if (!email) return fallback;
+
+  const [localPart] = email.split("@");
+  return localPart?.trim() || fallback;
+}
+
+function getSafeFilePart(value: string, fallback: string) {
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9-_가-힣]/g, "");
+  return normalized || fallback;
+}
+
+function downloadDataUrl(dataUrl: string, fileName: string) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = fileName;
+  link.click();
+}
+
+async function dataUrlToBlob(dataUrl: string) {
+  const response = await fetch(dataUrl);
+  if (!response.ok) {
+    throw new Error("이미지 데이터를 읽지 못했어요.");
+  }
+
+  return response.blob();
+}
+
+async function uploadDataUrlToStorage(path: string, dataUrl: string) {
+  const blob = await dataUrlToBlob(dataUrl);
+
+  const { error } = await supabase.storage
+    .from(RESULT_STORAGE_BUCKET)
+    .upload(path, blob, {
+      contentType: blob.type || "image/png",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`스토리지 업로드 실패: ${error.message}`);
+  }
+
+  return path;
+}
+
+async function resolveFrameId(options: {
+  frameId?: string;
+  frameTitle?: string;
+  shotCount: number;
+}) {
+  if (options.frameId) {
+    return options.frameId;
+  }
+
+  const normalizedTitle = options.frameTitle?.trim();
+
+  if (normalizedTitle) {
+    const { data: exactMatch, error: exactError } = await supabase
+      .from("frames")
+      .select("id")
+      .eq("title", normalizedTitle)
+      .limit(1)
+      .maybeSingle();
+
+    if (exactError) {
+      throw new Error(`프레임 조회 실패: ${exactError.message}`);
+    }
+
+    if (exactMatch?.id) {
+      return exactMatch.id;
+    }
+  }
+
+  const { data: shotCountMatch, error: shotCountError } = await supabase
+    .from("frames")
+    .select("id")
+    .eq("shot_count", options.shotCount)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (shotCountError) {
+    throw new Error(`프레임 조회 실패: ${shotCountError.message}`);
+  }
+
+  if (shotCountMatch?.id) {
+    return shotCountMatch.id;
+  }
+
+  throw new Error("프레임 정보를 찾지 못했어요. 프레임 선택 화면에서 다시 들어와 주세요.");
 }
 
 function getSlots(shotCount: number): Slot[] {
@@ -125,12 +224,16 @@ async function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("이미지를 불러오지 못했어요."));
+    image.onerror = () =>
+      reject(new Error("이미지를 불러오지 못했어요."));
     image.src = src;
   });
 }
 
-async function buildTransparentResultImage(photos: string[], shotCount: number) {
+async function buildTransparentResultImage(
+  photos: string[],
+  shotCount: number
+) {
   const canvas = document.createElement("canvas");
   canvas.width = shotCount === 3 ? 1800 : 1200;
   canvas.height = shotCount === 3 ? 1100 : 1600;
@@ -198,6 +301,16 @@ async function buildTransparentResultImage(photos: string[], shotCount: number) 
   return canvas.toDataURL("image/png");
 }
 
+async function buildPerShotImages(photos: string[]) {
+  const validPhotos = photos.filter(Boolean);
+  return Promise.all(
+    validPhotos.map(async (photo, index) => ({
+      shotOrder: index + 1,
+      imageUrl: photo,
+    }))
+  );
+}
+
 function FramePreview({
   shotCount,
   photos,
@@ -248,7 +361,10 @@ function FramePreview({
               alignItems: "center",
               justifyContent: "center",
               background: PREVIEW_BG,
-              border: shotCount === 3 ? "none" : "2px dashed rgba(64,80,214,0.35)",
+              border:
+                shotCount === 3
+                  ? "none"
+                  : "2px dashed rgba(64,80,214,0.35)",
               boxSizing: "border-box",
             }}
           >
@@ -260,7 +376,8 @@ function FramePreview({
                   width: "100%",
                   height: "100%",
                   objectFit: shotCount === 3 ? "cover" : "contain",
-                  objectPosition: shotCount === 3 ? "center center" : "center",
+                  objectPosition:
+                    shotCount === 3 ? "center center" : "center",
                   transform: shotCount === 3 ? "scale(1.18)" : "scale(1.06)",
                   transformOrigin: "center center",
                 }}
@@ -280,19 +397,68 @@ export default function PhotoResult() {
   const stored = sessionStorage.getItem("photoResultData");
   const storedState = stored ? (JSON.parse(stored) as ResultState) : null;
 
+  const frameId = state.frameId ?? storedState?.frameId ?? "";
   const shotCount = state.shotCount ?? storedState?.shotCount ?? 2;
-  const frameTitle = state.frameTitle ?? storedState?.frameTitle ?? `${shotCount}컷`;
+  const frameTitle =
+    state.frameTitle ?? storedState?.frameTitle ?? `${shotCount}컷`;
   const photos = state.photos ?? storedState?.photos ?? [];
+  const initialMessage = state.message ?? storedState?.message ?? "";
 
   const [shareCode, setShareCode] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [finalImageUrl, setFinalImageUrl] = useState("");
-
-  const userId = "userID";
-  const savedMessage = "하이루~~ 보고 싶어~~";
+  const [userId, setUserId] = useState("게스트");
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [message, setMessage] = useState(initialMessage);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
+    "idle"
+  );
+  const [saveStatusMessage, setSaveStatusMessage] = useState("");
 
   useEffect(() => {
     setShareCode(generateRandomCode());
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUser = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("세션 조회 실패:", error);
+          return;
+        }
+
+        if (!mounted) return;
+
+        const email = session?.user?.email ?? null;
+        setUserId(getDisplayUserId(email));
+        setAuthUserId(session?.user?.id ?? null);
+      } catch (error) {
+        console.error("로그인 사용자 정보 조회 실패:", error);
+      }
+    };
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email ?? null;
+      setUserId(getDisplayUserId(email));
+      setAuthUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -304,6 +470,17 @@ export default function PhotoResult() {
 
     return () => window.clearTimeout(timer);
   }, [isCopied]);
+
+  useEffect(() => {
+    if (saveStatus === "idle" || !saveStatusMessage) return;
+
+    const timer = window.setTimeout(() => {
+      setSaveStatus("idle");
+      setSaveStatusMessage("");
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
+  }, [saveStatus, saveStatusMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,17 +505,45 @@ export default function PhotoResult() {
     };
   }, [photos, shotCount]);
 
+  useEffect(() => {
+    const nextStoredState: ResultState = {
+      ...storedState,
+      frameId,
+      shotCount,
+      frameTitle,
+      photos,
+      message,
+    };
+
+    sessionStorage.setItem("photoResultData", JSON.stringify(nextStoredState));
+  }, [storedState, frameId, shotCount, frameTitle, photos, message]);
+
   const savePayload = useMemo(
     () => ({
-      userId,
-      message: savedMessage,
-      shareCode,
+      frameId,
       frameTitle,
       shotCount,
-      photos,
-      finalImageUrl,
+      message,
+      shareCode,
+      userId,
+      authUserId,
+      resultImageUrl: finalImageUrl,
+      cuts: photos.filter(Boolean).map((photo, index) => ({
+        shotOrder: index + 1,
+        imageUrl: photo,
+      })),
     }),
-    [userId, savedMessage, shareCode, frameTitle, shotCount, photos, finalImageUrl]
+    [
+      frameId,
+      frameTitle,
+      shotCount,
+      message,
+      shareCode,
+      userId,
+      authUserId,
+      finalImageUrl,
+      photos,
+    ]
   );
 
   const handleGenerateCode = () => {
@@ -356,18 +561,142 @@ export default function PhotoResult() {
     }
   };
 
-  const handleSave = () => {
-    if (!finalImageUrl) {
-      window.alert("아직 결과 이미지를 만드는 중이에요. 잠시 후 다시 시도해주세요.");
+  const handleSave = async () => {
+    if (!photos.length) {
+      setSaveStatus("error");
+      setSaveStatusMessage("저장할 컷이 없어요.");
+      window.alert("저장할 컷이 없어요.");
       return;
     }
 
-    const link = document.createElement("a");
-    link.href = finalImageUrl;
-    link.download = `framie-${shareCode || "photo"}.png`;
-    link.click();
+    if (!authUserId) {
+      setSaveStatus("error");
+      setSaveStatusMessage("로그인한 사용자 정보가 필요해요.");
+      window.alert("로그인한 사용자 정보가 필요해요.");
+      return;
+    }
 
-    console.log("추후 DB 저장 payload", savePayload);
+    if (!shareCode) {
+      setSaveStatus("error");
+      setSaveStatusMessage(
+        "공유 코드가 없어요. 새 코드 생성 후 다시 시도해주세요."
+      );
+      window.alert("공유 코드가 없어요. 새 코드 생성 후 다시 시도해주세요.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus("idle");
+    setSaveStatusMessage("");
+
+    try {
+      const resolvedFrameId = await resolveFrameId({
+        frameId,
+        frameTitle,
+        shotCount,
+      });
+      const safeCode = getSafeFilePart(shareCode || "photo", "photo");
+      const safeUserId = getSafeFilePart(userId || "guest", "guest");
+      const safeFrameTitle = getSafeFilePart(
+        frameTitle || `${shotCount}컷`,
+        `${shotCount}컷`
+      );
+      const sessionId = crypto.randomUUID();
+      const perShotImages = await buildPerShotImages(photos);
+
+      if (!perShotImages.length) {
+        throw new Error("저장 가능한 컷 이미지가 없어요.");
+      }
+
+      const uploadedCuts = await Promise.all(
+        perShotImages.map(async (shot) => {
+          const shotPath = `sessions/${sessionId}/shots/${shot.shotOrder}-${safeCode}-${safeUserId}.png`;
+          await uploadDataUrlToStorage(shotPath, shot.imageUrl);
+
+          return {
+            shotOrder: shot.shotOrder,
+            originalPath: shotPath,
+            processedPath: shotPath,
+          };
+        })
+      );
+
+      let uploadedPreviewPath: string | null = null;
+      if (finalImageUrl) {
+        uploadedPreviewPath = `sessions/${sessionId}/preview/${safeFrameTitle}-${safeCode}-${safeUserId}.png`;
+        await uploadDataUrlToStorage(uploadedPreviewPath, finalImageUrl);
+      }
+
+      const { data: insertedSession, error: sessionError } = await supabase
+        .from("photo_sessions")
+        .insert({
+          id: sessionId,
+          frame_id: resolvedFrameId,
+          photographer_id: authUserId,
+          frame_owner_id: authUserId,
+          user_message: message || null,
+          result_image_path: uploadedPreviewPath,
+          result_thumbnail_path: uploadedPreviewPath,
+          is_saved: true,
+        })
+        .select("id")
+        .single();
+
+      if (sessionError || !insertedSession) {
+        throw new Error(
+          sessionError?.message || "photo_sessions 저장에 실패했어요."
+        );
+      }
+
+      const { error: photosError } = await supabase
+        .from("session_photos")
+        .insert(
+          uploadedCuts.map((shot) => ({
+            session_id: insertedSession.id,
+            shot_order: shot.shotOrder,
+            original_path: shot.originalPath,
+            processed_path: shot.processedPath,
+          }))
+        );
+
+      if (photosError) {
+        throw new Error(`session_photos 저장 실패: ${photosError.message}`);
+      }
+
+      const { error: shareCodeError } = await supabase
+        .from("share_codes")
+        .insert({
+          session_id: insertedSession.id,
+          code: shareCode,
+          created_by: authUserId,
+        });
+
+      if (shareCodeError) {
+        throw new Error(`share_codes 저장 실패: ${shareCodeError.message}`);
+      }
+
+      console.log("Supabase 저장 완료 payload", {
+        ...savePayload,
+        frameId: resolvedFrameId,
+        sessionId: insertedSession.id,
+        uploadedPreviewPath,
+        cuts: uploadedCuts,
+      });
+
+      setSaveStatus("success");
+      setSaveStatusMessage("스토리지 업로드와 DB 저장이 모두 완료됐어요.");
+    } catch (error) {
+      console.error("Supabase 저장 실패:", error);
+      setSaveStatus("error");
+      setSaveStatusMessage(
+        error instanceof Error ? error.message : "저장 중 문제가 발생했어요."
+      );
+      window.alert(
+        error instanceof Error ? error.message : "저장 중 문제가 발생했어요."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -398,7 +727,8 @@ export default function PhotoResult() {
         ) : (
           <div
             style={{
-              width: shotCount === 3 ? "min(88vw, 980px)" : "min(78vw, 520px)",
+              width:
+                shotCount === 3 ? "min(88vw, 980px)" : "min(78vw, 520px)",
               aspectRatio: `${getFrameAspectRatio(shotCount)}`,
               border: "2px dashed rgba(64,80,214,0.28)",
               borderRadius: 34,
@@ -463,16 +793,38 @@ export default function PhotoResult() {
               제작 : {userId}
             </p>
 
-            <p
+            <label
               style={{
-                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
                 fontSize: "16px",
                 fontWeight: 400,
                 opacity: 0.95,
               }}
             >
-              메시지 : {savedMessage}
-            </p>
+              <span>메시지</span>
+              <input
+                type="text"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="메시지를 입력해주세요"
+                maxLength={40}
+                style={{
+                  width: "100%",
+                  height: "44px",
+                  borderRadius: "10px",
+                  border: "1.5px solid rgba(255,255,255,0.45)",
+                  background: "rgba(255,255,255,0.12)",
+                  color: WHITE,
+                  padding: "0 14px",
+                  fontSize: "15px",
+                  fontWeight: 500,
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              />
+            </label>
 
             <p
               style={{
@@ -553,6 +905,7 @@ export default function PhotoResult() {
             <button
               type="button"
               onClick={handleSave}
+              disabled={isSaving}
               style={{
                 width: "100%",
                 height: "72px",
@@ -562,11 +915,29 @@ export default function PhotoResult() {
                 color: WHITE,
                 fontSize: "18px",
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: isSaving ? "not-allowed" : "pointer",
+                opacity: isSaving ? 0.7 : 1,
               }}
             >
-              투명 PNG 저장하기
+              {isSaving ? "저장 중..." : "Supabase에 저장하기"}
             </button>
+
+            {saveStatusMessage ? (
+              <p
+                style={{
+                  margin: 0,
+                  textAlign: "center",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color:
+                    saveStatus === "success"
+                      ? "rgba(255,255,255,0.96)"
+                      : "rgba(255,235,235,0.96)",
+                }}
+              >
+                {saveStatusMessage}
+              </p>
+            ) : null}
 
             <div
               style={{
@@ -614,7 +985,6 @@ export default function PhotoResult() {
           </div>
         </div>
       </section>
-      
     </div>
   );
 }
