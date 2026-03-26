@@ -9,6 +9,53 @@ const WHITE = "#ffffff";
 const PREVIEW_BG = "#f1f2fb";
 const RESULT_STORAGE_BUCKET = "photo-results";
 
+const FRAME_COLOR_OPTIONS = [
+  {
+    key: "classic",
+    label: "클래식 블루",
+    border: "#4050d6",
+    inner: "rgba(64,80,214,0.22)",
+    preview: "#f1f2fb",
+  },
+  {
+    key: "pink",
+    label: "소프트 핑크",
+    border: "#e66aa3",
+    inner: "rgba(230,106,163,0.24)",
+    preview: "#fff1f7",
+  },
+  {
+    key: "orange",
+    label: "코랄 오렌지",
+    border: "#f28a3f",
+    inner: "rgba(242,138,63,0.24)",
+    preview: "#fff4ea",
+  },
+  {
+    key: "mint",
+    label: "민트",
+    border: "#47bfa9",
+    inner: "rgba(71,191,169,0.24)",
+    preview: "#eefcf8",
+  },
+  {
+    key: "lavender",
+    label: "라벤더",
+    border: "#8b74f2",
+    inner: "rgba(139,116,242,0.24)",
+    preview: "#f4f1ff",
+  },
+  {
+    key: "mono",
+    label: "모노",
+    border: "#4b5563",
+    inner: "rgba(75,85,99,0.22)",
+    preview: "#f3f4f6",
+  },
+] as const;
+
+type FrameColorOption = (typeof FRAME_COLOR_OPTIONS)[number];
+
 type ResultState = {
   frameId?: string;
   shotCount?: number;
@@ -224,15 +271,15 @@ async function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () =>
-      reject(new Error("이미지를 불러오지 못했어요."));
+    image.onerror = () => reject(new Error("이미지를 불러오지 못했어요."));
     image.src = src;
   });
 }
 
 async function buildTransparentResultImage(
   photos: string[],
-  shotCount: number
+  shotCount: number,
+  frameColor: FrameColorOption
 ) {
   const canvas = document.createElement("canvas");
   canvas.width = shotCount === 3 ? 1800 : 1200;
@@ -259,12 +306,12 @@ async function buildTransparentResultImage(
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   context.save();
-  context.strokeStyle = "rgba(64,80,214,0.65)";
+  context.strokeStyle = frameColor.border;
   context.lineWidth = 7;
   roundedRect(context, outerX, outerY, outerWidth, outerHeight, 54);
   context.stroke();
 
-  context.strokeStyle = "rgba(64,80,214,0.22)";
+  context.strokeStyle = frameColor.inner;
   context.lineWidth = 5;
   roundedRect(context, innerX, innerY, innerWidth, innerHeight, 42);
   context.stroke();
@@ -314,9 +361,11 @@ async function buildPerShotImages(photos: string[]) {
 function FramePreview({
   shotCount,
   photos,
+  frameColor,
 }: {
   shotCount: number;
   photos: string[];
+  frameColor: FrameColorOption;
 }) {
   const viewportAspect = getViewportAspectRatio();
   const frameAspectRatio = getFrameAspectRatio(shotCount);
@@ -329,18 +378,18 @@ function FramePreview({
       style={{
         width: shotCount === 3 ? "min(88vw, 980px)" : "min(78vw, 520px)",
         aspectRatio: `${frameAspectRatio}`,
-        border: "3px solid rgba(64,80,214,0.65)",
+        border: `3px solid ${frameColor.border}`,
         borderRadius: 34,
         padding: "22px",
         boxSizing: "border-box",
-        background: "transparent",
+        background: "rgba(255,255,255,0.22)",
       }}
     >
       <div
         style={{
           width: "100%",
           height: "100%",
-          border: "2px solid rgba(64,80,214,0.2)",
+          border: `2px solid ${frameColor.inner}`,
           borderRadius: 28,
           position: "relative",
           background: "transparent",
@@ -360,11 +409,9 @@ function FramePreview({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: PREVIEW_BG,
+              background: frameColor.preview,
               border:
-                shotCount === 3
-                  ? "none"
-                  : "2px dashed rgba(64,80,214,0.35)",
+                shotCount === 3 ? "none" : `2px dashed ${frameColor.inner}`,
               boxSizing: "border-box",
             }}
           >
@@ -415,6 +462,8 @@ export default function PhotoResult() {
     "idle"
   );
   const [saveStatusMessage, setSaveStatusMessage] = useState("");
+  const [selectedFrameColorKey, setSelectedFrameColorKey] =
+    useState<FrameColorOption["key"]>("classic");
 
   useEffect(() => {
     setShareCode(generateRandomCode());
@@ -482,28 +531,6 @@ export default function PhotoResult() {
     return () => window.clearTimeout(timer);
   }, [saveStatus, saveStatusMessage]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const buildResult = async () => {
-      if (!photos.length) return;
-
-      try {
-        const result = await buildTransparentResultImage(photos, shotCount);
-        if (!cancelled) {
-          setFinalImageUrl(result);
-        }
-      } catch (error) {
-        console.error("결과 이미지 생성 실패:", error);
-      }
-    };
-
-    buildResult();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [photos, shotCount]);
 
   useEffect(() => {
     const nextStoredState: ResultState = {
@@ -518,6 +545,40 @@ export default function PhotoResult() {
     sessionStorage.setItem("photoResultData", JSON.stringify(nextStoredState));
   }, [storedState, frameId, shotCount, frameTitle, photos, message]);
 
+  const selectedFrameColor = useMemo(
+    () =>
+      FRAME_COLOR_OPTIONS.find((option) => option.key === selectedFrameColorKey) ??
+      FRAME_COLOR_OPTIONS[0],
+    [selectedFrameColorKey]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const buildResult = async () => {
+      if (!photos.length) return;
+
+      try {
+        const result = await buildTransparentResultImage(
+          photos,
+          shotCount,
+          selectedFrameColor
+        );
+        if (!cancelled) {
+          setFinalImageUrl(result);
+        }
+      } catch (error) {
+        console.error("결과 이미지 생성 실패:", error);
+      }
+    };
+
+    buildResult();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photos, shotCount, selectedFrameColor]);
+
   const savePayload = useMemo(
     () => ({
       frameId,
@@ -528,6 +589,7 @@ export default function PhotoResult() {
       userId,
       authUserId,
       resultImageUrl: finalImageUrl,
+      frameColorKey: selectedFrameColor.key,
       cuts: photos.filter(Boolean).map((photo, index) => ({
         shotOrder: index + 1,
         imageUrl: photo,
@@ -542,6 +604,7 @@ export default function PhotoResult() {
       userId,
       authUserId,
       finalImageUrl,
+      selectedFrameColor,
       photos,
     ]
   );
@@ -559,6 +622,20 @@ export default function PhotoResult() {
       console.error("코드 복사 실패:", error);
       window.alert("코드 복사에 실패했어요. 다시 시도해주세요.");
     }
+  };
+
+  const handleDownload = () => {
+    if (!finalImageUrl) {
+      window.alert("아직 결과 이미지가 준비되지 않았어요.");
+      return;
+    }
+
+    const safeFrameTitle = getSafeFilePart(
+      frameTitle || `${shotCount}컷`,
+      `${shotCount}컷`
+    );
+    const safeCode = getSafeFilePart(shareCode || "photo", "photo");
+    downloadDataUrl(finalImageUrl, `${safeFrameTitle}-${safeCode}.png`);
   };
 
   const handleSave = async () => {
@@ -627,6 +704,7 @@ export default function PhotoResult() {
         await uploadDataUrlToStorage(uploadedPreviewPath, finalImageUrl);
       }
 
+      // frame color 값도 DB에 저장하려면 photo_sessions 테이블에 컬럼을 추가한 뒤 함께 넣어주세요.
       const { data: insertedSession, error: sessionError } = await supabase
         .from("photo_sessions")
         .insert({
@@ -680,6 +758,7 @@ export default function PhotoResult() {
         frameId: resolvedFrameId,
         sessionId: insertedSession.id,
         uploadedPreviewPath,
+        frameColorKey: selectedFrameColor.key,
         cuts: uploadedCuts,
       });
 
@@ -723,7 +802,11 @@ export default function PhotoResult() {
         }}
       >
         {photos.length > 0 ? (
-          <FramePreview shotCount={shotCount} photos={photos} />
+          <FramePreview
+            shotCount={shotCount}
+            photos={photos}
+            frameColor={selectedFrameColor}
+          />
         ) : (
           <div
             style={{
@@ -874,6 +957,84 @@ export default function PhotoResult() {
                 새 코드 생성
               </button>
             </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "16px",
+                  fontWeight: 400,
+                  opacity: 0.95,
+                }}
+              >
+                프레임 색상
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                {FRAME_COLOR_OPTIONS.map((option) => {
+                  const isSelected = selectedFrameColorKey === option.key;
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setSelectedFrameColorKey(option.key)}
+                      style={{
+                        border: isSelected
+                          ? "2px solid rgba(255,255,255,0.96)"
+                          : "1px solid rgba(255,255,255,0.32)",
+                        borderRadius: "16px",
+                        background: "rgba(255,255,255,0.12)",
+                        padding: "10px 8px",
+                        color: WHITE,
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: isSelected
+                          ? "0 0 0 2px rgba(255,255,255,0.16)"
+                          : "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "999px",
+                          background: option.border,
+                          border: "2px solid rgba(255,255,255,0.82)",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          lineHeight: 1.2,
+                          textAlign: "center",
+                          wordBreak: "keep-all",
+                        }}
+                      >
+                        {option.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div
@@ -900,6 +1061,24 @@ export default function PhotoResult() {
               }}
             >
               {isCopied ? "코드 복사 완료" : "공유하기"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownload}
+              style={{
+                width: "100%",
+                height: "72px",
+                borderRadius: "10px",
+                border: "none",
+                background: "rgba(255,255,255,0.16)",
+                color: WHITE,
+                fontSize: "18px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              결과 이미지 다운로드
             </button>
 
             <button
