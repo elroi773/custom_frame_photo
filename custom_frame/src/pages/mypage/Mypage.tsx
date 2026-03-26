@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import h1 from "../../assets/Mypage.svg";
+
+import { supabase } from "../../lib/supabase";
 
 const PAGE_BG = "#f5f4ee";
 const PRIMARY = "#4050d6";
@@ -8,6 +10,64 @@ const MUTED = "#8b8b95";
 
 export default function Mypage() {
   const [activeTab, setActiveTab] = useState<"myframe" | "photos">("myframe");
+  const [userId, setUserId] = useState("로그인 정보 없음");
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUser = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) return;
+
+      if (error || !user) {
+        setUserId("로그인 정보 없음");
+        setIsLoadingUser(false);
+        return;
+      }
+
+      const displayId =
+        user.user_metadata?.nickname ||
+        user.user_metadata?.name ||
+        user.email ||
+        user.id;
+
+      setUserId(`@${displayId}`);
+      setIsLoadingUser(false);
+    };
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user;
+
+      if (!currentUser) {
+        setUserId("로그인 정보 없음");
+        setIsLoadingUser(false);
+        return;
+      }
+
+      const displayId =
+        currentUser.user_metadata?.nickname ||
+        currentUser.user_metadata?.name ||
+        currentUser.email ||
+        currentUser.id;
+
+      setUserId(`@${displayId}`);
+      setIsLoadingUser(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const cards =
     activeTab === "myframe"
@@ -90,9 +150,10 @@ export default function Mypage() {
                   fontSize: "22px",
                   fontWeight: 700,
                   color: PRIMARY,
+                  wordBreak: "break-all",
                 }}
               >
-                @framie_user
+                {isLoadingUser ? "불러오는 중..." : userId}
               </p>
             </div>
 
