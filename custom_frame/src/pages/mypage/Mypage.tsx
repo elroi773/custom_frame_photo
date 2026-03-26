@@ -7,6 +7,10 @@ const PAGE_BG = "#f5f4ee";
 const PRIMARY = "#4050d6";
 const CARD_BG = "#ffffff";
 const MUTED = "#8b8b95";
+const TEXT_MAIN = "#1f2552";
+const BORDER = "rgba(64, 80, 214, 0.08)";
+const SOFT_PANEL = "#eef0fb";
+const SOFT_CARD = "#f8f9ff";
 
 export default function Mypage() {
   const [activeTab, setActiveTab] = useState<"myframe" | "photos">("myframe");
@@ -72,24 +76,57 @@ export default function Mypage() {
   const cards =
     activeTab === "myframe"
       ? [
-          { title: "Summer Mood", subtitle: "Recently edited" },
-          { title: "Blue Ribbon", subtitle: "Saved frame" },
-          { title: "Soft Cloud", subtitle: "Favorite preset" },
-          { title: "Classic Film", subtitle: "Last used" },
+          {
+            title: "Summer Mood",
+            subtitle: "Recently edited",
+            badge: "Custom",
+          },
+          {
+            title: "Blue Ribbon",
+            subtitle: "Saved frame",
+            badge: "Popular",
+          },
+          {
+            title: "Soft Cloud",
+            subtitle: "Favorite preset",
+            badge: "Favorite",
+          },
+          {
+            title: "Classic Film",
+            subtitle: "Last used",
+            badge: "Recent",
+          },
         ]
       : [
-          { title: "04 Mar 2026", subtitle: "3 photos saved" },
-          { title: "28 Feb 2026", subtitle: "2 photos saved" },
-          { title: "21 Feb 2026", subtitle: "4 photos saved" },
-          { title: "14 Feb 2026", subtitle: "1 photo saved" },
+          {
+            title: "04 Mar 2026",
+            subtitle: "3 photos saved",
+            badge: "Latest",
+          },
+          {
+            title: "28 Feb 2026",
+            subtitle: "2 photos saved",
+            badge: "Saved",
+          },
+          {
+            title: "21 Feb 2026",
+            subtitle: "4 photos saved",
+            badge: "Archive",
+          },
+          {
+            title: "14 Feb 2026",
+            subtitle: "1 photo saved",
+            badge: "Memory",
+          },
         ];
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: PAGE_BG,
-        padding: "clamp(20px, 4vw, 40px) clamp(16px, 3vw, 32px) 48px",
+        background:
+          "radial-gradient(circle at top, #ffffff 0%, #f7f8ff 32%, #f5f4ee 72%, #efeff8 100%)",
+        padding: "clamp(20px, 4vw, 40px) clamp(16px, 3vw, 32px) 56px",
         boxSizing: "border-box",
       }}
     >
@@ -106,10 +143,12 @@ export default function Mypage() {
       >
         <header
           style={{
-            background: CARD_BG,
-            borderRadius: "28px",
-            padding: "28px 24px 22px",
-            boxShadow: "0 12px 30px rgba(24, 36, 84, 0.08)",
+            background: "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(12px)",
+            borderRadius: "32px",
+            padding: "30px 26px 24px",
+            boxShadow: "0 18px 40px rgba(24, 36, 84, 0.08)",
+            border: `1px solid ${BORDER}`,
             gridColumn: "span 1",
           }}
         >
@@ -120,17 +159,15 @@ export default function Mypage() {
             style={{
               width: "min(220px, 70%)",
               display: "block",
-              margin: "0 auto 20px",
+              margin: "0 0 24px",
             }}
           />
 
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
+              flexDirection: "column",
+              gap: "18px",
             }}
           >
             <div>
@@ -139,18 +176,20 @@ export default function Mypage() {
                   margin: 0,
                   fontSize: "13px",
                   color: MUTED,
-                  letterSpacing: "0.04em",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                 }}
               >
-                ID
+                Account
               </p>
               <p
                 style={{
-                  margin: "6px 0 0",
-                  fontSize: "22px",
-                  fontWeight: 700,
+                  margin: "10px 0 0",
+                  fontSize: "26px",
+                  fontWeight: 800,
                   color: PRIMARY,
                   wordBreak: "break-all",
+                  lineHeight: 1.25,
                 }}
               >
                 {isLoadingUser ? "불러오는 중..." : userId}
@@ -159,30 +198,80 @@ export default function Mypage() {
 
             <div
               style={{
-                minWidth: "88px",
-                height: "88px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #e8ebff 0%, #dfe3ff 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: PRIMARY,
-                fontSize: "13px",
-                fontWeight: 700,
-                boxShadow: "inset 0 0 0 1px rgba(64, 80, 214, 0.08)",
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "12px",
               }}
             >
-              PROFILE
+              <div
+                style={{
+                  background: SOFT_CARD,
+                  borderRadius: "22px",
+                  padding: "16px 18px",
+                  boxShadow: "inset 0 0 0 1px rgba(64, 80, 214, 0.06)",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "12px",
+                    color: MUTED,
+                  }}
+                >
+                  Status
+                </p>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: TEXT_MAIN,
+                  }}
+                >
+                  {isLoadingUser ? "확인 중" : userId === "로그인 정보 없음" ? "Guest" : "Signed in"}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #4050d6 0%, #6573ea 100%)",
+                  borderRadius: "22px",
+                  padding: "16px 18px",
+                  color: "#ffffff",
+                  boxShadow: "0 12px 24px rgba(64, 80, 214, 0.18)",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "12px",
+                    color: "rgba(255,255,255,0.78)",
+                  }}
+                >
+                  Library
+                </p>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                  }}
+                >
+                  {cards.length} items
+                </p>
+              </div>
             </div>
           </div>
         </header>
 
         <section
           style={{
-            background: CARD_BG,
+            background: "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(12px)",
             borderRadius: "28px",
             padding: "14px",
-            boxShadow: "0 12px 30px rgba(24, 36, 84, 0.08)",
+            boxShadow: "0 18px 40px rgba(24, 36, 84, 0.08)",
+            border: `1px solid ${BORDER}`,
             gridColumn: "span 1",
           }}
         >
@@ -191,8 +280,8 @@ export default function Mypage() {
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: "10px",
-              background: "#eef0fb",
-              borderRadius: "20px",
+              background: SOFT_PANEL,
+              borderRadius: "22px",
               padding: "6px",
             }}
           >
@@ -200,15 +289,22 @@ export default function Mypage() {
               type="button"
               onClick={() => setActiveTab("myframe")}
               style={{
-                height: "52px",
+                height: "54px",
                 border: "none",
-                borderRadius: "16px",
-                background: activeTab === "myframe" ? PRIMARY : "transparent",
+                borderRadius: "18px",
+                background:
+                  activeTab === "myframe"
+                    ? "linear-gradient(135deg, #4050d6 0%, #6573ea 100%)"
+                    : "transparent",
                 color: activeTab === "myframe" ? "#ffffff" : PRIMARY,
-                fontSize: "17px",
-                fontWeight: 700,
+                fontSize: "16px",
+                fontWeight: 800,
                 cursor: "pointer",
                 transition: "all 0.2s ease",
+                boxShadow:
+                  activeTab === "myframe"
+                    ? "0 10px 20px rgba(64, 80, 214, 0.18)"
+                    : "none",
               }}
             >
               My frame
@@ -218,15 +314,22 @@ export default function Mypage() {
               type="button"
               onClick={() => setActiveTab("photos")}
               style={{
-                height: "52px",
+                height: "54px",
                 border: "none",
-                borderRadius: "16px",
-                background: activeTab === "photos" ? PRIMARY : "transparent",
+                borderRadius: "18px",
+                background:
+                  activeTab === "photos"
+                    ? "linear-gradient(135deg, #4050d6 0%, #6573ea 100%)"
+                    : "transparent",
                 color: activeTab === "photos" ? "#ffffff" : PRIMARY,
-                fontSize: "17px",
-                fontWeight: 700,
+                fontSize: "16px",
+                fontWeight: 800,
                 cursor: "pointer",
                 transition: "all 0.2s ease",
+                boxShadow:
+                  activeTab === "photos"
+                    ? "0 10px 20px rgba(64, 80, 214, 0.18)"
+                    : "none",
               }}
             >
               Photos
@@ -236,10 +339,12 @@ export default function Mypage() {
 
         <section
           style={{
-            background: CARD_BG,
-            borderRadius: "28px",
-            padding: "22px 18px 18px",
-            boxShadow: "0 12px 30px rgba(24, 36, 84, 0.08)",
+            background: "rgba(255, 255, 255, 0.92)",
+            backdropFilter: "blur(14px)",
+            borderRadius: "32px",
+            padding: "24px 20px 20px",
+            boxShadow: "0 18px 40px rgba(24, 36, 84, 0.08)",
+            border: `1px solid ${BORDER}`,
             gridColumn: "1 / -1",
           }}
         >
@@ -250,7 +355,7 @@ export default function Mypage() {
               justifyContent: "space-between",
               gap: "12px",
               flexWrap: "wrap",
-              marginBottom: "18px",
+              marginBottom: "22px",
             }}
           >
             <div>
@@ -258,7 +363,7 @@ export default function Mypage() {
                 style={{
                   margin: 0,
                   fontSize: "22px",
-                  color: "#1f2552",
+                  color: TEXT_MAIN,
                 }}
               >
                 {activeTab === "myframe" ? "Saved frames" : "Recent photos"}
@@ -278,16 +383,18 @@ export default function Mypage() {
 
             <div
               style={{
-                minWidth: "44px",
-                height: "44px",
-                borderRadius: "14px",
-                background: "#eef0fb",
+                minWidth: "56px",
+                height: "56px",
+                padding: "0 14px",
+                borderRadius: "18px",
+                background: "linear-gradient(135deg, #edf0ff 0%, #f8f9ff 100%)",
                 color: PRIMARY,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "18px",
-                fontWeight: 700,
+                fontWeight: 800,
+                boxShadow: "inset 0 0 0 1px rgba(64, 80, 214, 0.08)",
               }}
             >
               {cards.length}
@@ -298,7 +405,7 @@ export default function Mypage() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "14px",
+              gap: "16px",
             }}
           >
             {cards.map((item) => (
@@ -307,12 +414,12 @@ export default function Mypage() {
                 type="button"
                 style={{
                   border: "none",
-                  background: "#f8f9ff",
-                  borderRadius: "22px",
+                  background: "linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%)",
+                  borderRadius: "26px",
                   padding: "16px",
                   textAlign: "left",
                   cursor: "pointer",
-                  boxShadow: "inset 0 0 0 1px rgba(64, 80, 214, 0.08)",
+                  boxShadow: "0 10px 26px rgba(31, 37, 82, 0.06)",
                   width: "100%",
                 }}
               >
@@ -320,30 +427,49 @@ export default function Mypage() {
                   style={{
                     width: "100%",
                     aspectRatio: "1 / 1",
-                    borderRadius: "18px",
+                    borderRadius: "20px",
                     background:
                       activeTab === "myframe"
                         ? "linear-gradient(135deg, #cfd6ff 0%, #e8ebff 100%)"
                         : "linear-gradient(135deg, #d8defd 0%, #f0f3ff 100%)",
-                    marginBottom: "12px",
+                    marginBottom: "14px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: PRIMARY,
                     fontSize: "13px",
-                    fontWeight: 700,
-                    letterSpacing: "0.03em",
+                    fontWeight: 800,
+                    letterSpacing: "0.06em",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: "12px",
+                      left: "12px",
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      background: "rgba(255,255,255,0.72)",
+                      backdropFilter: "blur(6px)",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      color: PRIMARY,
+                      letterSpacing: "0.03em",
+                    }}
+                  >
+                    {item.badge}
+                  </span>
                   {activeTab === "myframe" ? "FRAME" : "PHOTO"}
                 </div>
 
                 <p
                   style={{
                     margin: 0,
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    color: "#20275c",
+                    fontSize: "16px",
+                    fontWeight: 800,
+                    color: TEXT_MAIN,
                   }}
                 >
                   {item.title}
@@ -351,7 +477,7 @@ export default function Mypage() {
                 <p
                   style={{
                     margin: "6px 0 0",
-                    fontSize: "12px",
+                    fontSize: "13px",
                     color: MUTED,
                   }}
                 >
