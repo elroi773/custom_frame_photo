@@ -77,46 +77,46 @@ export default function Mypage() {
     activeTab === "myframe"
       ? [
           {
-            title: "Summer Mood",
-            subtitle: "Recently edited",
-            badge: "Custom",
+            title: "여름 무드",
+            subtitle: "최근 수정한 프레임",
+            badge: "커스텀",
           },
           {
-            title: "Blue Ribbon",
-            subtitle: "Saved frame",
-            badge: "Popular",
+            title: "블루 리본",
+            subtitle: "저장된 프레임",
+            badge: "인기",
           },
           {
-            title: "Soft Cloud",
-            subtitle: "Favorite preset",
-            badge: "Favorite",
+            title: "소프트 클라우드",
+            subtitle: "즐겨찾는 프리셋",
+            badge: "즐겨찾기",
           },
           {
-            title: "Classic Film",
-            subtitle: "Last used",
-            badge: "Recent",
+            title: "클래식 필름",
+            subtitle: "마지막 사용 프레임",
+            badge: "최근",
           },
         ]
       : [
           {
-            title: "04 Mar 2026",
-            subtitle: "3 photos saved",
-            badge: "Latest",
+            title: "2026년 3월 4일",
+            subtitle: "사진 3장 저장됨",
+            badge: "최신",
           },
           {
-            title: "28 Feb 2026",
-            subtitle: "2 photos saved",
-            badge: "Saved",
+            title: "2026년 2월 28일",
+            subtitle: "사진 2장 저장됨",
+            badge: "저장",
           },
           {
-            title: "21 Feb 2026",
-            subtitle: "4 photos saved",
-            badge: "Archive",
+            title: "2026년 2월 21일",
+            subtitle: "사진 4장 저장됨",
+            badge: "보관",
           },
           {
-            title: "14 Feb 2026",
-            subtitle: "1 photo saved",
-            badge: "Memory",
+            title: "2026년 2월 14일",
+            subtitle: "사진 1장 저장됨",
+            badge: "추억",
           },
         ];
 
@@ -180,7 +180,7 @@ export default function Mypage() {
                   textTransform: "uppercase",
                 }}
               >
-                Account
+                계정
               </p>
               <p
                 style={{
@@ -218,7 +218,7 @@ export default function Mypage() {
                     color: MUTED,
                   }}
                 >
-                  Status
+                  상태
                 </p>
                 <p
                   style={{
@@ -228,7 +228,7 @@ export default function Mypage() {
                     color: TEXT_MAIN,
                   }}
                 >
-                  {isLoadingUser ? "확인 중" : userId === "로그인 정보 없음" ? "Guest" : "Signed in"}
+                  {isLoadingUser ? "확인 중" : userId === "로그인 정보 없음" ? "게스트" : "로그인됨"}
                 </p>
               </div>
 
@@ -248,7 +248,7 @@ export default function Mypage() {
                     color: "rgba(255,255,255,0.78)",
                   }}
                 >
-                  Library
+                  보관함
                 </p>
                 <p
                   style={{
@@ -257,7 +257,7 @@ export default function Mypage() {
                     fontWeight: 700,
                   }}
                 >
-                  {cards.length} items
+                  {cards.length}개
                 </p>
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function Mypage() {
                     : "none",
               }}
             >
-              My frame
+              내 프레임
             </button>
 
             <button
@@ -332,7 +332,7 @@ export default function Mypage() {
                     : "none",
               }}
             >
-              Photos
+              사진
             </button>
           </div>
         </section>
@@ -366,7 +366,7 @@ export default function Mypage() {
                   color: TEXT_MAIN,
                 }}
               >
-                {activeTab === "myframe" ? "Saved frames" : "Recent photos"}
+                {activeTab === "myframe" ? "저장한 프레임" : "최근 사진"}
               </h2>
               <p
                 style={{
@@ -376,8 +376,8 @@ export default function Mypage() {
                 }}
               >
                 {activeTab === "myframe"
-                  ? "Your favorite frame styles in one place"
-                  : "Moments you captured with Framie"}
+                  ? "좋아하는 프레임을 한곳에서 모아보세요"
+                  : "프래미에서 저장한 순간들을 확인해보세요"}
               </p>
             </div>
 
@@ -461,7 +461,7 @@ export default function Mypage() {
                   >
                     {item.badge}
                   </span>
-                  {activeTab === "myframe" ? "FRAME" : "PHOTO"}
+                  {activeTab === "myframe" ? "프레임" : "사진"}
                 </div>
 
                 <p
